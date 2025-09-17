@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rede Acelerada</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="style.css">
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js"></script>
+</head>
+<body>
+    <div id="invite">
+        <h2>Entrar na Rede Acelerada</h2>
+        <form id="inviteForm">
+            <input type="text" id="inviteKeyInput" placeholder="Chave de Convite" required>
+            <button type="submit">Validar Chave</button>
+        </form>
+    </div>
+
+    <div id="register" style="display: none;">
+        <h2>Registro</h2>
+        <form id="registerForm">
+            <input type="text" id="name" placeholder="Nome" required>
+            <input type="tel" id="phone" placeholder="Telefone" required>
+            <input type="email" id="email" placeholder="E-mail" required>
+            <input type="password" id="password" placeholder="Senha" required>
+            <button type="submit">Registrar</button>
+        </form>
+    </div>
+
+    <div id="dashboard" style="display: none;">
+        <h2>Bem-vindo, <span id="userName"></span></h2>
+        <p>Sua Chave de Convite: <span id="inviteKeyDisplay"></span></p>
+        <button id="logoutBtn">Sair</button>
+        <h3>Contatos Desbloqueados</h3>
+        <div id="contacts"></div>
+    </div>
+
+    <div id="adminDashboard" style="display: none;">
+        <h2>Painel Admin</h2>
+        <button id="logoutBtnAdmin">Sair</button>
+        <h3>Criar Usuário</h3>
+        <form id="createUserForm">
+            <input type="text" id="adminName" placeholder="Nome" required>
+            <input type="tel" id="adminPhone" placeholder="Telefone" required>
+            <input type="email" id="adminEmail" placeholder="E-mail" required>
+            <input type="password" id="adminPassword" placeholder="Senha" required>
+            <button type="submit">Criar Usuário</button>
+        </form>
+        <div id="generatedKey" style="display: none;">
+            <p>Chave de Convite Gerada: <span id="newInviteKey"></span> <button id="copyKeyBtn">Copiar</button></p>
+        </div>
+        <h3>Lista de Usuários</h3>
+        <div id="userList"></div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

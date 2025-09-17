@@ -1,0 +1,28 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Allow authenticated users to read all users (for hierarchy access)
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Allow authenticated users to read/write counters
+    match /counters/{counterId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Allow admin full access
+    function isAdmin() {
+      return request.auth != null && (
+        request.auth.token.email == "redeacelerada@gmail.com" ||
+        request.auth.token.email == "eldergab@gmail.com"
+      );
+    }
+
+    match /{document=**} {
+      allow read, write: if isAdmin();
+    }
+  }
+}
