@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dashboard - Rede Acelerada</title>
+    <link rel="stylesheet" href="style.css" />
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js"></script>
+</head>
+<body>
+    <div id="dashboard">
+        <h2>Bem-vindo, <span id="userName"></span></h2>
+        <p>Sua Chave de Convite: <span id="inviteKeyDisplay"></span></p>
+        <button id="logoutBtn">Sair</button>
+        <h3>Contatos Desbloqueados</h3>
+        <div id="contacts"></div>
+    </div>
+
+    <script>
+        // Firebase config and init
+        const firebaseConfig = {
+            apiKey: "AIzaSyB3PxoSfFCnTEOfe1jtSO0z_sKkanh1iqg",
+            authDomain: "redeacelerada-31f8d.firebaseapp.com",
+            projectId: "redeacelerada-31f8d",
+            storageBucket: "redeacelerada-31f8d.firebasestorage.app",
+            messagingSenderId: "308912724721",
+            appId: "1:308912724721:web:bad154d8292a773f6b6750",
+            measurementId: "G-5VJZ06ZKS7"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        const userNameSpan = document.getElementById('userName');
+        const inviteKeyDisplay = document.getElementById('inviteKeyDisplay');
+        const contactsDiv = document.getElementById('contacts');
+        const logoutBtn = document.getElementById('logoutBtn');
+
+        logoutBtn.addEventListener('click', () => {
+            auth.signOut();
+        });
+
+        auth.onAuthStateChanged(async (user) => {
+            if (user) {
+                const userDoc = await db.collection('users').doc(user.uid).get();
+                const userData = userDoc.data();
+                userNameSpan.textContent = userData.name;
+                inviteKeyDisplay.textContent = userData.invitationKey;
+
+                const unlockedContacts = await getUnlockedContacts(user.uid, userData);
+                displayContacts(unlockedContacts);
+            } else {
+                window.location.href = 'index.html';
+            }
+        });
+
+        async function getUnlockedContacts(userId, userData) {
+            const generation = userData.generation;
+            const childrenCount = userData.children.length;
+
+            let unlocked = [];
+
+            if (userData.children.length > 0) {
+                for (const childId of userData.children) {
+                    const childDoc = await db.collection('users').doc(childId).get();
+                    unlocked.push(childDoc.data());
+                }
+            }
+
+            if (childrenCount >= 10) {
+                for (const childId of userData.children) {
+                    const childDoc = await db.collection('users').doc(childId).get();
+                    const childData = childDoc.data();
+                    for (const grandchildId of childData.children) {
+                        const grandchildDoc = await db.collection('users').doc(grandchildId).get();
+                        unlocked.push(grandchildDoc.data());
+                    }
+                }
+            }
+
+            if (generation >= 5) {
+                const counterDoc = await db.collection('counters').doc('keyCounter').get();
+                const count = counterDoc.exists ? counterDoc.data().count : 0;
+                const unlockedCount = Math.floor(count / 4);
+                const recentUsers = await db.collection('users').where('generation', '>=', 5).orderBy('createdAt', 'desc').limit(unlockedCount).get();
+                recentUsers.forEach(doc => unlocked.push(doc.data()));
+            }
+
+            return unlocked;
+        }
+
+        function displayContacts(contacts) {
+            contactsDiv.innerHTML = '';
+            contacts.forEach(contact => {
+                const div = document.createElement('div');
+                div.innerHTML = `<p><strong>${contact.name}</strong><br>Telefone: ${contact.phone}<br>E-mail: ${contact.email}</p>`;
+                contactsDiv.appendChild(div);
+            });
+        }
+    </script>
+</body>
+</html>

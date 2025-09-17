@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Admin - Rede Acelerada</title>
+    <link rel="stylesheet" href="style.css" />
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js"></script>
+</head>
+<body>
+    <div id="adminDashboard">
+        <h2>Painel Admin</h2>
+        <button id="logoutBtnAdmin">Sair</button>
+        <h3>Criar Usuário</h3>
+        <form id="createUserForm">
+            <input type="text" id="adminName" placeholder="Nome" required />
+            <input type="tel" id="adminPhone" placeholder="Telefone" required />
+            <input type="email" id="adminEmail" placeholder="E-mail" required />
+            <input type="password" id="adminPassword" placeholder="Senha" required />
+            <button type="submit">Criar Usuário</button>
+        </form>
+        <div id="generatedKey" style="display: none;">
+            <p>Chave de Convite Gerada: <span id="newInviteKey"></span> <button id="copyKeyBtn">Copiar</button></p>
+        </div>
+        <h3>Lista de Usuários</h3>
+        <div id="userList"></div>
+    </div>
+
+    <script>
+        // Firebase config and init
+        const firebaseConfig = {
+            apiKey: "AIzaSyB3PxoSfFCnTEOfe1jtSO0z_sKkanh1iqg",
+            authDomain: "redeacelerada-31f8d.firebaseapp.com",
+            projectId: "redeacelerada-31f8d",
+            storageBucket: "redeacelerada-31f8d.firebasestorage.app",
+            messagingSenderId: "308912724721",
+            appId: "1:308912724721:web:bad154d8292a773f6b6750",
+            measurementId: "G-5VJZ06ZKS7"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        const logoutBtnAdmin = document.getElementById('logoutBtnAdmin');
+        const createUserForm = document.getElementById('createUserForm');
+        const newInviteKeySpan = document.getElementById('newInviteKey');
+        const generatedKeyDiv = document.getElementById('generatedKey');
+        const copyKeyBtn = document.getElementById('copyKeyBtn');
+        const userListDiv = document.getElementById('userList');
+
+        logoutBtnAdmin.addEventListener('click', () => {
+            auth.signOut();
+        });
+
+        createUserForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('adminName').value;
+            const phone = document.getElementById('adminPhone').value;
+            const email = document.getElementById('adminEmail').value;
+            const password = document.getElementById('adminPassword').value;
+
+            try {
+                const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+                const userId = userCredential.user.uid;
+                const newInviteKey = generateInviteKey();
+
+                await db.collection('users').doc(userId).set({
+                    name,
+                    phone,
+                    email,
+                    parentId: null,
+                    invitationKey: newInviteKey,
+                    generation: 0,
+                    children: [],
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                newInviteKeySpan.textContent = newInviteKey;
+                generatedKeyDiv.style.display = 'block';
+                createUserForm.reset();
+                await loadUserList();
+            } catch (error) {
+                alert('Erro ao criar usuário: ' + error.message);
+            }
+        });
+
+        copyKeyBtn.addEventListener('click', () => {
+            navigator.clipboard.writeText(newInviteKeySpan.textContent);
+            alert('Chave copiada!');
+        });
+
+        async function loadUserList() {
+            const usersSnapshot = await db.collection('users').get();
+            userListDiv.innerHTML = '';
+            usersSnapshot.forEach(doc => {
+                const user = doc.data();
+                const div = document.createElement('div');
+                div.innerHTML = `
+                    <p><strong>${user.name}</strong> (${user.email}) - Geração: ${user.generation} - Filhos: ${user.children.length}</p>
+                    <button onclick="editUser('${doc.id}')">Editar</button>
+                    <button onclick="deleteUser('${doc.id}')">Excluir</button>
+                `;
+                userListDiv.appendChild(div);
+            });
+        }
+
+        function editUser(userId) {
+            alert('Editar usuário: ' + userId);
+            // Implementar lógica de edição
+        }
+
+        async function deleteUser(userId) {
+            if (confirm('Tem certeza que deseja excluir este usuário?')) {
+                try {
+                    await db.collection('users').doc(userId).delete();
+                    await loadUserList();
+                } catch (error) {
+                    alert('Erro ao excluir: ' + error.message);
+                }
+            }
+        }
+
+        function generateInviteKey() {
+            return Math.random().toString(36).substr(2, 9).toUpperCase();
+        }
+
+        auth.onAuthStateChanged(user => {
+            if (!user) {
+                window.location.href = 'index.html';
+            }
+        });
+
+        // Carregar lista de usuários ao iniciar
+        loadUserList();
+    </script>
+</body>
+</html>

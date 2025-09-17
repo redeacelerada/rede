@@ -15,54 +15,70 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 // DOM elements
-const authDiv = document.getElementById('auth');
+const inviteDiv = document.getElementById('invite');
 const registerDiv = document.getElementById('register');
 const dashboardDiv = document.getElementById('dashboard');
-const loginForm = document.getElementById('loginForm');
+const adminDashboardDiv = document.getElementById('adminDashboard');
+const inviteForm = document.getElementById('inviteForm');
 const registerForm = document.getElementById('registerForm');
-const showRegister = document.getElementById('showRegister');
-const showLogin = document.getElementById('showLogin');
+const createUserForm = document.getElementById('createUserForm');
 const logoutBtn = document.getElementById('logoutBtn');
+const logoutBtnAdmin = document.getElementById('logoutBtnAdmin');
 const userNameSpan = document.getElementById('userName');
 const inviteKeyDisplay = document.getElementById('inviteKeyDisplay');
 const contactsDiv = document.getElementById('contacts');
+const generatedKeyDiv = document.getElementById('generatedKey');
+const newInviteKeySpan = document.getElementById('newInviteKey');
+const copyKeyBtn = document.getElementById('copyKeyBtn');
+const userListDiv = document.getElementById('userList');
+
+// Admin emails
+const adminEmails = ['redeacelerada@gmail.com', 'eldergab@gmail.com'];
+
+// Variables for invite
+let validatedInviteKey = null;
+let parentId = null;
 
 // Auth state listener
 auth.onAuthStateChanged(async (user) => {
     if (user) {
-        authDiv.style.display = 'none';
-        registerDiv.style.display = 'none';
-        dashboardDiv.style.display = 'block';
-        await loadDashboard(user);
+        if (adminEmails.includes(user.email)) {
+            inviteDiv.style.display = 'none';
+            registerDiv.style.display = 'none';
+            dashboardDiv.style.display = 'none';
+            adminDashboardDiv.style.display = 'block';
+            await loadAdminDashboard();
+        } else {
+            inviteDiv.style.display = 'none';
+            registerDiv.style.display = 'none';
+            dashboardDiv.style.display = 'block';
+            adminDashboardDiv.style.display = 'none';
+            await loadDashboard(user);
+        }
     } else {
-        authDiv.style.display = 'block';
+        inviteDiv.style.display = 'block';
         registerDiv.style.display = 'none';
         dashboardDiv.style.display = 'none';
+        adminDashboardDiv.style.display = 'none';
     }
 });
 
-// Toggle forms
-showRegister.addEventListener('click', (e) => {
+// Invite form
+inviteForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    authDiv.style.display = 'none';
-    registerDiv.style.display = 'block';
-});
-
-showLogin.addEventListener('click', (e) => {
-    e.preventDefault();
-    registerDiv.style.display = 'none';
-    authDiv.style.display = 'block';
-});
-
-// Login
-loginForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const email = document.getElementById('loginEmail').value;
-    const password = document.getElementById('loginPassword').value;
+    const key = document.getElementById('inviteKeyInput').value.trim();
     try {
-        await auth.signInWithEmailAndPassword(email, password);
+        const parentDoc = await db.collection('users').where('invitationKey', '==', key).get();
+        if (parentDoc.empty) {
+            alert('Chave de convite inválida.');
+            return;
+        }
+        validatedInviteKey = key;
+        parentId = parentDoc.docs[0].id;
+        inviteDiv.style.display = 'none';
+        registerDiv.style.display = 'block';
     } catch (error) {
-        alert('Erro no login: ' + error.message);
+        alert('Erro ao validar chave: ' + error.message);
     }
 });
 
@@ -73,17 +89,9 @@ registerForm.addEventListener('submit', async (e) => {
     const phone = document.getElementById('phone').value;
     const email = document.getElementById('email').value;
     const password = document.getElementById('password').value;
-    const inviteKey = document.getElementById('inviteKey').value;
 
     try {
-        // Validate invite key
-        const parentDoc = await db.collection('users').where('invitationKey', '==', inviteKey).get();
-        if (parentDoc.empty) {
-            alert('Chave de convite inválida.');
-            return;
-        }
-        const parentId = parentDoc.docs[0].id;
-        const parentData = parentDoc.docs[0].data();
+        const parentData = (await db.collection('users').doc(parentId).get()).data();
         const generation = parentData.generation + 1;
 
         // Create user
@@ -115,6 +123,9 @@ registerForm.addEventListener('submit', async (e) => {
             await incrementKeyCounter();
         }
 
+        // Show dashboard
+        // Auth state will handle
+
     } catch (error) {
         alert('Erro no registro: ' + error.message);
     }
@@ -123,6 +134,60 @@ registerForm.addEventListener('submit', async (e) => {
 // Logout
 logoutBtn.addEventListener('click', () => {
     auth.signOut();
+});
+
+// Admin logout
+logoutBtnAdmin.addEventListener('click', () => {
+    auth.signOut();
+});
+
+// Create user by admin
+createUserForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = document.getElementById('adminName').value;
+    const phone = document.getElementById('adminPhone').value;
+    const email = document.getElementById('adminEmail').value;
+    const password = document.getElementById('adminPassword').value;
+
+    try {
+        // Create user
+        const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+        const userId = userCredential.user.uid;
+
+        // Generate invite key
+        const newInviteKey = generateInviteKey();
+
+        // Save to Firestore (admin created, no parent, generation 0)
+        await db.collection('users').doc(userId).set({
+            name,
+            phone,
+            email,
+            parentId: null,
+            invitationKey: newInviteKey,
+            generation: 0,
+            children: [],
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        // Show generated key
+        newInviteKeySpan.textContent = newInviteKey;
+        generatedKeyDiv.style.display = 'block';
+
+        // Clear form
+        createUserForm.reset();
+
+        // Reload user list
+        await loadUserList();
+
+    } catch (error) {
+        alert('Erro ao criar usuário: ' + error.message);
+    }
+});
+
+// Copy key
+copyKeyBtn.addEventListener('click', () => {
+    navigator.clipboard.writeText(newInviteKeySpan.textContent);
+    alert('Chave copiada!');
 });
 
 // Load dashboard
@@ -202,6 +267,45 @@ function displayContacts(contacts) {
         div.innerHTML = `<p><strong>${contact.name}</strong><br>Telefone: ${contact.phone}<br>E-mail: ${contact.email}</p>`;
         contactsDiv.appendChild(div);
     });
+}
+
+// Load admin dashboard
+async function loadAdminDashboard() {
+    await loadUserList();
+}
+
+// Load user list
+async function loadUserList() {
+    const usersSnapshot = await db.collection('users').get();
+    userListDiv.innerHTML = '';
+    usersSnapshot.forEach(doc => {
+        const user = doc.data();
+        const div = document.createElement('div');
+        div.innerHTML = `
+            <p><strong>${user.name}</strong> (${user.email}) - Geração: ${user.generation} - Filhos: ${user.children.length}</p>
+            <button onclick="editUser('${doc.id}')">Editar</button>
+            <button onclick="deleteUser('${doc.id}')">Excluir</button>
+        `;
+        userListDiv.appendChild(div);
+    });
+}
+
+// Edit user (placeholder)
+function editUser(userId) {
+    alert('Editar usuário: ' + userId);
+    // Implement edit logic
+}
+
+// Delete user
+async function deleteUser(userId) {
+    if (confirm('Tem certeza que deseja excluir este usuário?')) {
+        try {
+            await db.collection('users').doc(userId).delete();
+            await loadUserList();
+        } catch (error) {
+            alert('Erro ao excluir: ' + error.message);
+        }
+    }
 }
 
 // Register service worker for PWA

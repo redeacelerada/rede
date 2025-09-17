@@ -6,6 +6,7 @@
 - [x] Create style.css for basic styling
 - [x] Create manifest.json for PWA
 - [x] Create sw.js for service worker
+- [x] Add admin dashboard with user creation, list, edit/delete
 
 ## Pending
 - [ ] Refine access logic for 3rd, 4th, and 5th+ generations
@@ -16,3 +17,4 @@
 - [ ] Handle edge cases in access logic (e.g., counting per generation)
 - [ ] Add error handling and user feedback
 - [ ] Optimize queries for large hierarchies
+- [ ] Implement full CRUD for admin (edit user details)
