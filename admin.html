@@ -5,31 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Admin - Rede Acelerada</title>
     <link rel="stylesheet" href="style.css" />
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js"></script>
-</head>
-<body>
-    <div id="adminDashboard">
-        <h2>Painel Admin</h2>
-        <button id="logoutBtnAdmin">Sair</button>
-        <h3>Criar Usuário</h3>
-        <form id="createUserForm">
-            <input type="text" id="adminName" placeholder="Nome" required />
-            <input type="tel" id="adminPhone" placeholder="Telefone" required />
-            <input type="email" id="adminEmail" placeholder="E-mail" required />
-            <input type="password" id="adminPassword" placeholder="Senha" required />
-            <button type="submit">Criar Usuário</button>
-        </form>
-        <div id="generatedKey" style="display: none;">
-            <p>Chave de Convite Gerada: <span id="newInviteKey"></span> <button id="copyKeyBtn">Copiar</button></p>
-        </div>
-        <h3>Lista de Usuários</h3>
-        <div id="userList"></div>
-    </div>
+    <script type="module">
+        // Import Firebase modules
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+        import { getAuth, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+        import { getFirestore, collection, doc, setDoc, getDocs, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 
-    <script>
-        // Firebase config and init
+        // Firebase config
         const firebaseConfig = {
             apiKey: "AIzaSyB3PxoSfFCnTEOfe1jtSO0z_sKkanh1iqg",
             authDomain: "redeacelerada-31f8d.firebaseapp.com",
@@ -39,10 +21,13 @@
             appId: "1:308912724721:web:bad154d8292a773f6b6750",
             measurementId: "G-5VJZ06ZKS7"
         };
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const db = firebase.firestore();
 
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // DOM elements
         const logoutBtnAdmin = document.getElementById('logoutBtnAdmin');
         const createUserForm = document.getElementById('createUserForm');
         const newInviteKeySpan = document.getElementById('newInviteKey');
@@ -51,7 +36,7 @@
         const userListDiv = document.getElementById('userList');
 
         logoutBtnAdmin.addEventListener('click', () => {
-            auth.signOut();
+            signOut(auth);
         });
 
         createUserForm.addEventListener('submit', async (e) => {
@@ -62,11 +47,11 @@
             const password = document.getElementById('adminPassword').value;
 
             try {
-                const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
                 const userId = userCredential.user.uid;
                 const newInviteKey = generateInviteKey();
 
-                await db.collection('users').doc(userId).set({
+                await setDoc(doc(db, "users", userId), {
                     name,
                     phone,
                     email,
@@ -74,7 +59,7 @@
                     invitationKey: newInviteKey,
                     generation: 0,
                     children: [],
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    createdAt: serverTimestamp()
                 });
 
                 newInviteKeySpan.textContent = newInviteKey;
@@ -92,15 +77,15 @@
         });
 
         async function loadUserList() {
-            const usersSnapshot = await db.collection('users').get();
+            const usersSnapshot = await getDocs(collection(db, "users"));
             userListDiv.innerHTML = '';
-            usersSnapshot.forEach(doc => {
-                const user = doc.data();
+            usersSnapshot.forEach(docSnap => {
+                const user = docSnap.data();
                 const div = document.createElement('div');
                 div.innerHTML = `
                     <p><strong>${user.name}</strong> (${user.email}) - Geração: ${user.generation} - Filhos: ${user.children.length}</p>
-                    <button onclick="editUser('${doc.id}')">Editar</button>
-                    <button onclick="deleteUser('${doc.id}')">Excluir</button>
+                    <button onclick="editUser('${docSnap.id}')">Editar</button>
+                    <button onclick="deleteUser('${docSnap.id}')">Excluir</button>
                 `;
                 userListDiv.appendChild(div);
             });
@@ -114,7 +99,7 @@
         async function deleteUser(userId) {
             if (confirm('Tem certeza que deseja excluir este usuário?')) {
                 try {
-                    await db.collection('users').doc(userId).delete();
+                    await deleteDoc(doc(db, "users", userId));
                     await loadUserList();
                 } catch (error) {
                     alert('Erro ao excluir: ' + error.message);
@@ -126,7 +111,7 @@
             return Math.random().toString(36).substr(2, 9).toUpperCase();
         }
 
-        auth.onAuthStateChanged(user => {
+        onAuthStateChanged(auth, user => {
             if (!user) {
                 window.location.href = 'index.html';
             }
