@@ -24,4 +24,6 @@
 - [x] Implement logic for 4th generation unlocking (great-great-grandchildren if >=10 great-grandchildren)
 - [x] Refine logic for 5th+ generation unlocking (every 4 keys, unlock recent users)
 - [x] Update Firestore rules to allow reading user data for unlocked contacts
-- [ ] Test the refined access logic
+- [x] Test the refined access logic
+- [x] Remove sensitive files from git history and add .gitignore
+- [x] Push changes to GitHub repository
